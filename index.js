@@ -91,6 +91,8 @@ bot.command('h', async (ctx) => {
   ctx.reply(taggedMessage);
 })
 bot.launch();
-await axios.post(`${telegramApiUrl}/sendMessage`, {
+
+
+axios.post(`${telegramApiUrl}/sendMessage`, {
   chat_id: targetChatId, text: `restarted`, parse_mode: "HTML"
 })
