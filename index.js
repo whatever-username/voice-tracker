@@ -17,7 +17,6 @@ client.once('ready', () => {
 });
 var oldMessage = null
 client.on('voiceStateUpdate', async (oldState, newState) => {
-  if ((!oldState.channel && newState.channel) || (oldState.channel && !newState.channel)) {
     var channel;
     if (oldState.channel == null) {
       channel = newState.channel
@@ -59,7 +58,6 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
           chat_id: 668539715, text: error
         });
       });
-  }
 
 
 });
