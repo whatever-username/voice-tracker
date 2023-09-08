@@ -4,10 +4,10 @@ const axios = require('axios');
 const {Telegraf} = require('telegraf')
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildWebhooks, GatewayIntentBits.GuildVoiceStates,]
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildWebhooks, GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.GuildPresences,]
 });
 
-const discordBotToken = 'MTEzODg0ODMwMTQ5NjY4NDYxNA.Glob6l.VgAmX_uke_FiHxQfreR9ht_rJulx76f-23lbws';
+const discordBotToken = 'MTEzODg0ODMwMTQ5NjY4NDYxNA.GXNEmu.U5PcmaLQG_tcg8JBebPFMCxQuBsAUI0cnbT4fw';
 const telegramBotToken = '6612952814:AAHOHGYOTamPKcvl5olpb0TPadAu_h_iJtU';
 const targetChatId = '-1001606190308'; // Replace with the chat_id you want to send the message to
 const telegramApiUrl = `https://api.telegram.org/bot${telegramBotToken}`;
