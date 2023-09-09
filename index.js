@@ -17,51 +17,21 @@ client.once('ready', () => {
 });
 var oldMessage = null
 client.on('voiceStateUpdate', async (oldState, newState) => {
-    var channel;
-    if (oldState.channel == null) {
-      channel = newState.channel
-    } else {
-      channel = oldState.channel
-    }
-    var users = channel.members.map(it => {
-      const username = it.user.username;
-      const isMuted = it.voice.mute;
-      const isDeafened = it.voice.deaf;
-      const status = '' + (username === "frozenheime" ? " 🐓" : "") + (isMuted ? "🙊" : "") + (isDeafened ? "🙉" : "")
-      return `<b>${username}</b>${status}`;
-    });
-
-
-    if (oldMessage || users.length === 0) {
-      try {
-        const response = await axios.post(`${telegramApiUrl}/deleteMessage`, {
-          chat_id: targetChatId, message_id: oldMessage
-        });
-      } catch (error) {
-        await axios.post(telegramApiUrl, {
-          chat_id: 668539715, text: error
-        });
-      }
-      if (users.length === 0) {
-        oldMessage = null
-        return
-      }
-    }
-
-    var response = await axios.post(`${telegramApiUrl}/sendMessage`, {
-      chat_id: targetChatId, text: `В войсе:\n${users.join("\n")}`, parse_mode: "HTML"
-    })
-      .then(response => {
-        oldMessage = response.data.result.message_id;
-      }).catch(error => {
-        axios.post(telegramApiUrl, {
-          chat_id: 668539715, text: error
-        });
-      });
-
-
+  var channel;
+  if (oldState.channel == null) {
+    channel = newState.channel
+  } else {
+    channel = oldState.channel
+  }
+  updateInfoByChannel(channel)
 });
 
+client.on('presenceUpdate', async (oldPresence, newPresence) => {
+  const member = newPresence.member;
+  let channel = member.guild.channels._cache.filter(it => it.name == "Лобби").values().next().value
+  await updateInfoByChannel(channel)
+
+});
 
 client.login(discordBotToken);
 
@@ -101,3 +71,69 @@ bot.launch();
 axios.post(`${telegramApiUrl}/sendMessage`, {
   chat_id: targetChatId, text: `restarted`, parse_mode: "HTML"
 })
+
+
+async function updateInfoByChannel(channel) {
+  var usersInVoice = channel.members.map(it => {
+    const username = it.user.username;
+    const isMuted = it.voice.mute;
+    const isDeafened = it.voice.deaf;
+    const status = '' + (username === "frozenheime" ? " 🐓" : "") + (isMuted ? "🙊" : "") + (isDeafened ? "🙉" : "")
+    return `<b>${username}</b>${status}`;
+  });
+  var userIdToUsernameMap = getIdToUsernameMap(channel)
+
+  var infoByActivities = getActivitiesText(channel)
+  if (oldMessage || usersInVoice.length === 0 || infoByActivities) {
+    try {
+      const response = await axios.post(`${telegramApiUrl}/deleteMessage`, {
+        chat_id: targetChatId, message_id: oldMessage
+      });
+    } catch (error) {
+    }
+    if (usersInVoice.length === 0 || !infoByActivities) {
+      oldMessage = null
+      return
+    }
+  }
+  var text = `В войсе:\n${usersInVoice.join("\n")}` + "\n\n" + `<code>${infoByActivities}</code>`
+  var response = await axios.post(`${telegramApiUrl}/sendMessage`, {
+    chat_id: targetChatId, text: text, parse_mode: "HTML"
+  })
+    .then(response => {
+      oldMessage = response.data.result.message_id;
+    }).catch(error => {
+      axios.post(telegramApiUrl, {
+        chat_id: 668539715, text: error
+      });
+    });
+
+}
+
+function getIdToUsernameMap(channel) {
+  var res = {}
+  channel.guild.members._cache.forEach(it => {
+    res[it.user.id] = it.user.username
+  })
+  return res
+}
+
+function getActivitiesText(channel) {
+  return channel.guild.presences._cache.map(it => {
+    var activities = null
+    if (it.activities && it.activities.length != 0) {
+      let a = it.activities[0]
+      activities = a.name
+      if (a.state) {
+        activities += `. ${a.state}`
+      }
+      if (a.details) {
+        activities += `. ${a.details}`
+      }
+    }
+    return {
+      username: getIdToUsernameMap(channel)[it.userId], text: activities
+    }
+  }).filter(it => it.text)
+    .map(it => it.username + ': ' + it.text).join("\n")
+}
