@@ -12,6 +12,13 @@ const telegramBotToken = '6612952814:AAHOHGYOTamPKcvl5olpb0TPadAu_h_iJtU';
 const targetChatId = '-1001606190308'; // Replace with the chat_id you want to send the message to
 const telegramApiUrl = `https://api.telegram.org/bot${telegramBotToken}`;
 
+const Bottleneck = require("bottleneck");
+const limiter = new Bottleneck({
+  maxConcurrent: 1,
+  minTime: 1000, // Add a delay of 1 second between requests
+});
+
+
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
@@ -86,9 +93,9 @@ async function updateInfoByChannel(channel) {
   var infoByActivities = getActivitiesText(channel)
   if (oldMessage || usersInVoice.length === 0 || infoByActivities) {
     try {
-      const response = await axios.post(`${telegramApiUrl}/deleteMessage`, {
-        chat_id: targetChatId, message_id: oldMessage
-      });
+      limiter.schedule(() => axios.post(`${telegramApiUrl}/deleteMessage`, {
+        chat_id: targetChatId, message_id: oldMessage,
+      }));
     } catch (error) {
     }
     if (usersInVoice.length === 0 || !infoByActivities) {

@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "axios": "^1.4.0",
+    "bottleneck": "^2.19.5",
     "discord.js": "^14.12.1",
     "telegraf": "^3.38.0"
   }
