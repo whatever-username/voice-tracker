@@ -15,7 +15,7 @@ const telegramApiUrl = `https://api.telegram.org/bot${telegramBotToken}`;
 const Bottleneck = require("bottleneck");
 const limiter = new Bottleneck({
   maxConcurrent: 1,
-  minTime: 200, // Add a delay of 1 second between requests
+  minTime: 100,
 });
 
 
