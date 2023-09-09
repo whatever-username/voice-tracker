@@ -15,14 +15,14 @@ const telegramApiUrl = `https://api.telegram.org/bot${telegramBotToken}`;
 const Bottleneck = require("bottleneck");
 const limiter = new Bottleneck({
   maxConcurrent: 1,
-  minTime: 1000, // Add a delay of 1 second between requests
+  minTime: 200, // Add a delay of 1 second between requests
 });
 
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
-var oldMessage = null
+var oldMessages = []
 client.on('voiceStateUpdate', async (oldState, newState) => {
   var channel;
   if (oldState.channel == null) {
@@ -91,15 +91,15 @@ async function updateInfoByChannel(channel) {
   var userIdToUsernameMap = getIdToUsernameMap(channel)
 
   var infoByActivities = getActivitiesText(channel)
-  if (oldMessage || usersInVoice.length === 0 || infoByActivities) {
-    try {
+  if ((oldMessages && oldMessages.length > 0) || usersInVoice.length === 0 || infoByActivities) {
+    oldMessages.forEach(id => {
       limiter.schedule(() => axios.post(`${telegramApiUrl}/deleteMessage`, {
-        chat_id: targetChatId, message_id: oldMessage,
+        chat_id: targetChatId, message_id: id,
+      }).then(res => oldMessages.splice(oldMessages.indexOf(id), 1)).catch(err => {
       }));
-    } catch (error) {
-    }
+    })
+
     if (usersInVoice.length === 0 || !infoByActivities) {
-      oldMessage = null
       return
     }
   }
@@ -108,7 +108,7 @@ async function updateInfoByChannel(channel) {
     chat_id: targetChatId, text: text, parse_mode: "HTML"
   })
     .then(response => {
-      oldMessage = response.data.result.message_id;
+      oldMessages.push(response.data.result.message_id);
     }).catch(error => {
       axios.post(telegramApiUrl, {
         chat_id: 668539715, text: error
