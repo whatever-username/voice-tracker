@@ -92,12 +92,7 @@ async function updateInfoByChannel(channel) {
 
   var infoByActivities = getActivitiesText(channel)
   if ((oldMessages && oldMessages.length > 0) || usersInVoice.length === 0 || infoByActivities) {
-    oldMessages.forEach(id => {
-      limiter.schedule(() => axios.post(`${telegramApiUrl}/deleteMessage`, {
-        chat_id: targetChatId, message_id: id,
-      }).then(res => oldMessages.splice(oldMessages.indexOf(id), 1)).catch(err => {
-      }));
-    })
+    removeOld()
 
     if (usersInVoice.length === 0 || !infoByActivities) {
       return
@@ -108,6 +103,7 @@ async function updateInfoByChannel(channel) {
     chat_id: targetChatId, text: text, parse_mode: "HTML"
   })
     .then(response => {
+      removeOld()
       oldMessages.push(response.data.result.message_id);
     }).catch(error => {
       axios.post(telegramApiUrl, {
@@ -143,4 +139,12 @@ function getActivitiesText(channel) {
     }
   }).filter(it => it.text)
     .map(it => it.username + ': ' + it.text).join("\n")
+}
+function removeOld(){
+  oldMessages.forEach(id => {
+    limiter.schedule(() => axios.post(`${telegramApiUrl}/deleteMessage`, {
+      chat_id: targetChatId, message_id: id,
+    }).then(res => oldMessages.splice(oldMessages.indexOf(id), 1)).catch(err => {
+    }));
+  })
 }
