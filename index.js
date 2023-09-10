@@ -94,7 +94,7 @@ async function updateInfoByChannel(channel) {
   if ((oldMessages && oldMessages.length > 0) || usersInVoice.length === 0 || infoByActivities) {
     removeOld()
 
-    if (usersInVoice.length === 0 || !infoByActivities) {
+    if (usersInVoice.length === 0 && !infoByActivities) {
       return
     }
   }
