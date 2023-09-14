@@ -18,6 +18,7 @@ const limiter = new Bottleneck({
   minTime: 100,
 });
 
+let lastSentmessage = "";
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
@@ -99,18 +100,20 @@ async function updateInfoByChannel(channel) {
     }
   }
   var text = `В войсе:\n${usersInVoice.join("\n")}` + "\n\n" + `<code>${infoByActivities}</code>`
+  if (text !== lastSentMessage) {
   var response = await axios.post(`${telegramApiUrl}/sendMessage`, {
     chat_id: targetChatId, text: text, parse_mode: "HTML"
   })
     .then(response => {
       removeOld()
       oldMessages.push(response.data.result.message_id);
+      lastSentMessage = text;
     }).catch(error => {
       axios.post(telegramApiUrl, {
         chat_id: 668539715, text: error
       });
     });
-
+  }
 }
 
 function getIdToUsernameMap(channel) {
