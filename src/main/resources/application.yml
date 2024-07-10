@@ -1,0 +1,30 @@
+micronaut:
+  application:
+    name: voice-tracker
+telegram:
+  target-chat-id: # normal telegram chat that is used for everyday texting
+  subgroup-id: #  topic (subgroup) id in the chat, where you can send some favorite audios & get transcription for them (optional)
+  voices-chat-id: # telegram chat id where all the recorded audios will be sent and stored
+  tags-map: # map of tags and usernames that are related to them to tag them in target-chat: /all /tag1 /tag2 etc.
+    all: [ "tg_username1", "tg_username2", "tg_username3", "tg_username4", "tg_username5" ]
+    tag1: [ "tg_username1", "tg_username2", "tg_username3" ]
+    tag2: [ "tg_username3", "tg_username4", "tg_username5" ]
+  bot:
+    webhook-url: #telegram bot webhook url
+    token: #telegram bot token
+discord:
+  guild-name: #discord guild name
+  usernames-to-record: #discord usernames to record
+    - "discord_username1"
+    - "discord_username2"
+  bot:
+    token: #discord bot token
+    name: #discord bot name
+open-ai:
+  key: #openai key for transcription of audios forwarded to subgroup in telegram voices-chat
+admins:
+  main-admin:  # main admin telegram id to whom all the logs & errors will be sent
+  telegram-ids: [ ] # list of telegram ids of admins who can use telegram bot commands
+
+
+
