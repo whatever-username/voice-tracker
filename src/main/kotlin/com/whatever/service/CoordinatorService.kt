@@ -16,7 +16,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.math.min
+import kotlin.math.max
 
 @Singleton
 class CoordinatorService(
@@ -30,55 +30,82 @@ class CoordinatorService(
     private val lastMessageIdInChat = AtomicLong(1)
     private val eventsMessageId = AtomicLong(0)
     private val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+    private val scope = CoroutineScope(dispatcher)
 
     init {
-        CoroutineScope(dispatcher).launch {
-            for (item in channel) {
-                log("new item: ${item.hashCode()}")
-                val start = System.currentTimeMillis()
-                log("item != lastMessage: ${item != lastMessage}")
-                log("lastMessageIdInChat: ${lastMessageIdInChat.value}, eventsMessageId: ${eventsMessageId.value}")
-                if (item != lastMessage || (lastMessageIdInChat.value != eventsMessageId.value)) {
-                    if (item.isNotBlank()) {
-                        log("itemIsNotBlank: true")
-                        if (lastMessageIdInChat.value != eventsMessageId.value) {
-                            deleteCacheMessages()
-                            telegramBot.get().sendToChat(item).also {
-                                with(it.get().messageId) {
-                                    lastMessageIdInChat.value = this
-                                    messageIdsMutex.withLock {
-                                        messageIds.add(it.get().messageId)
-                                    }
-                                }
+        scope.launch { processChannelItems() }
+        scope.launch { periodicallySendActivities() }
+    }
 
-                            }.let {
-                                eventsMessageId.value = it.get().messageId
-                                log("eventsMessageId: ${eventsMessageId.value}")
-                            }
-                        } else {
-                            telegramBot.get().editInChat(item, eventsMessageId.value)
-                        }
-                        lastMessage = item
-                    } else {
-                        deleteCacheMessages()
-                        lastMessage = ""
-                        eventsMessageId.value = 0
-                    }
-                    delay(min(1000 - (System.currentTimeMillis() - start), 1))
+    private suspend fun processChannelItems() {
+        for (item in channel) {
+            val item = item.trim()
+            val start = System.currentTimeMillis()
+            log("Event: ${if (item.isNotBlank()) "\n$item\n" else ""}")
+
+            messageIdsMutex.withLock {
+                log(buildString {
+                    appendLine()
+                    appendLine("lastMessageIdInChat: ${lastMessageIdInChat.value}")
+                    appendLine("eventsMessageId: ${eventsMessageId.value}")
+                    appendLine("messageIds: ${messageIds}")
+                    appendLine("lastMessage: ${lastMessage?.let { if (it.length > 20) it.take(10) + "..." + it.takeLast(10) else it}}")
+                })
+                if (itemShouldBeProcessed(item)) {
+                    handleItem(item)
                 }
             }
+            delay(max(1000 - (System.currentTimeMillis() - start), 1))
+
         }
-        CoroutineScope(dispatcher).launch {
-            while (true) {
-                delay(60 * 1000)
-                if (lastMessageIdInChat.value != eventsMessageId.value) {
-                    lastMessage?.let {
-                        sendActivities(it)
-                    }
+    }
+
+
+    private suspend fun periodicallySendActivities() {
+        while (true) {
+            delay(60 * 1000)
+            if (lastMessageIdInChat.value != eventsMessageId.value) {
+                scope.launch {
+                    lastMessage?.let { sendActivities(it) }
                 }
             }
 
         }
+    }
+
+    private fun itemShouldBeProcessed(item: String): Boolean {
+        return item != lastMessage || (lastMessageIdInChat.value != eventsMessageId.value)
+    }
+
+    private suspend fun handleItem(item: String) {
+        if (item.isNotBlank()) {
+            processNonBlankItem(item)
+        } else {
+            processBlankItem()
+        }
+    }
+
+    private suspend fun processNonBlankItem(item: String) {
+        if (lastMessageIdInChat.value != eventsMessageId.value) {
+            deleteCacheMessages()
+            val newMessageId = telegramBot.get().sendToChat(item).get().messageId
+            updateMessageIds(newMessageId)
+            eventsMessageId.value = newMessageId
+        } else {
+            telegramBot.get().editInChat(item, eventsMessageId.value)
+        }
+        lastMessage = item
+    }
+
+    private suspend fun processBlankItem() {
+        deleteCacheMessages()
+        lastMessage = ""
+        eventsMessageId.value = 0
+    }
+
+    private fun updateMessageIds(newMessageId: Long) {
+        lastMessageIdInChat.value = newMessageId
+        messageIds.add(newMessageId)
     }
 
     suspend fun sendActivities(string: String) {
@@ -86,20 +113,14 @@ class CoordinatorService(
     }
 
     private suspend fun deleteCacheMessages() {
-        messageIdsMutex.withLock {
-            val toDelete = messageIds.toSet()
-            messageIds.clear()
-            IOScope.launch {
-                toDelete.forEach {
-                    telegramBot.get().deleteInTargetChat(it)
-                }
-            }
+        val toDelete = messageIds.toSet()
+        messageIds.clear()
+        IOScope.launch {
+            toDelete.forEach { telegramBot.get().deleteInTargetChat(it) }
         }
     }
 
-
     fun setLastMessageIdInChat(value: Long) {
         lastMessageIdInChat.value = value
-        log("lastMessageIdInChat: ${lastMessageIdInChat.value}")
     }
 }

@@ -66,30 +66,50 @@ class TelegramBot(
         logLevel = LogLevel.Error
         dispatch {
             tagsMapConfig.tagsMap.forEach { (tag, vals) ->
-                this@dispatch.command(tag) { bot.sendMessage(targetChatId.toChatId(), vals.joinToString(" ") { "@$it" }) }
-            }
-            command("h") { bot.sendMessage(targetChatId.toChatId(), tagsMapConfig.tagsMap.keys.map { "/$it" }.joinToString("\n")) }
-            command("restart") { exitProcess(1) }
-            command("send") {
-                if (message.from?.id in adminsTelegramIds) {
-                    message.replyToMessage?.audio?.fileId?.let {
-                        CoroutineScope(Dispatchers.IO).launch { audioHandler.playMp3InDiscord(getVoiceLink(it)!!) }
-                    }
-                    bot.deleteMessage(ChatId.fromId(message.chat.id), message.messageId)
+                this@dispatch.command(tag) {
+                    bot.sendMessage(
+                        targetChatId.toChatId(),
+                        vals.joinToString(" ") { "@$it" })
                 }
             }
-            command("play") {
-                if (message.from?.id in adminsTelegramIds) {
-                    args.getOrNull(1)?.takeIf { it.startsWith("http") }?.let { url ->
-                        CoroutineScope(Dispatchers.IO).launch { audioHandler.playMp3InDiscord(url) }
+            command("h") {
+                bot.sendMessage(
+                    targetChatId.toChatId(),
+                    tagsMapConfig.tagsMap.keys.map { "/$it" }.joinToString("\n")
+                )
+            }
+            command("restart") { exitProcess(1) }
+            command("send") {
+                log("send command from ${message.from?.username}")
+                runCatching {
+                    if (message.from?.id in adminsTelegramIds) {
+                        message.replyToMessage?.audio?.fileId?.let {
+                            CoroutineScope(Dispatchers.IO).launch { audioHandler.playMp3InDiscord(getVoiceLink(it)!!) }
+                        }
+                        bot.deleteMessage(ChatId.fromId(message.chat.id), message.messageId)
                     }
-                    bot.deleteMessage(ChatId.fromId(message.chat.id), message.messageId)
+                }.exceptionOrNull()?.let { log("Error on sending: ${it.message}") }
+
+            }
+            command("play") {
+                log("play command from ${message.from?.username}")
+                if (message.from?.id in adminsTelegramIds) {
+                    runCatching {
+                        args.getOrNull(1)?.takeIf { it.startsWith("http") }?.let { url ->
+                            CoroutineScope(Dispatchers.IO).launch { audioHandler.playMp3InDiscord(url) }
+                        }
+                        bot.deleteMessage(ChatId.fromId(message.chat.id), message.messageId)
+                    }.exceptionOrNull()?.let { log("Error on playing: ${it.message}") }
                 }
             }
             command("stop") {
+                log("stop command from ${message.from?.username}")
                 if (message.from?.id in adminsTelegramIds) {
-                    audioHandler.stopPlayingInDiscord()
-                    bot.deleteMessage(ChatId.fromId(message.chat.id), message.messageId)
+                    runCatching {
+                        audioHandler.stopPlayingInDiscord()
+                        bot.deleteMessage(ChatId.fromId(message.chat.id), message.messageId)
+                    }.exceptionOrNull()?.let { log("Error on stopping: ${it.message}") }
+
                 }
             }
             command("get_id") {
@@ -125,8 +145,13 @@ class TelegramBot(
         "https://api.telegram.org/file/bot${botToken}/${fileUrl}"
     }.getOrNull()
 
-    fun processMessageThread(update: String) {
-        val message = mapper.readValue(update, MessageUpdateDTO::class.java)
+    suspend fun processMessageThread(update: String) {
+        val message = try {
+            mapper.readValue(update, MessageUpdateDTO::class.java)
+        } catch (e: Exception) {
+            log("Error on parsing message in thread: ${e.message}")
+            return
+        }
         if (message.message.message_thread_id != telegramSubgroupId) return
         message.message.audio?.file_id?.let {
             CoroutineScope(Dispatchers.IO).launch {

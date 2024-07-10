@@ -117,7 +117,9 @@ class AudioHandler(
         }
         try {
             tgMessageRateLimiter.execute {
-                runCatching { telegramBot.get().sendAudioToTelegramChat(caption = username, file = file) }.exceptionOrNull()?.let {
+                runCatching {
+                    telegramBot.get().sendAudioToTelegramChat(caption = username, file = file)
+                }.exceptionOrNull()?.let {
                     with("Failure on sending audio to storage: ${it.message}") {
                         log(this)
                         telegramBot.get().sendToMainAdmin(this)
@@ -134,10 +136,15 @@ class AudioHandler(
 
 
     fun playMp3InDiscord(trackFile: String) {
-        if (!audioManager.isConnected) {
-            audioManager.openAudioConnection(channel)
+        try {
+            if (!audioManager.isConnected) {
+                audioManager.openAudioConnection(channel)
+            }
+            playerManager.loadItem(trackFile, audioLoadResultHandler)
+        } catch (e: Exception) {
+            log("Error on playing mp3 in Discord: " + e.stackTraceToString())
         }
-        playerManager.loadItem(trackFile, audioLoadResultHandler)
+
     }
 
     fun stopPlayingInDiscord() {

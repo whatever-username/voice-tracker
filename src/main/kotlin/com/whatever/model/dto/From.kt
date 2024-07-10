@@ -5,6 +5,6 @@ data class From(
     val id: Long,
     val is_bot: Boolean,
     val is_premium: Boolean,
-    val language_code: String,
+    val language_code: String?,
     val username: String
 )
