@@ -8,7 +8,10 @@ import com.aallam.openai.api.model.ModelId
 import com.aallam.openai.client.LoggingConfig
 import com.aallam.openai.client.OpenAI
 import com.whatever.log
+import io.micronaut.context.annotation.Requires
 import io.micronaut.context.annotation.Value
+import io.micronaut.context.condition.Condition
+import io.micronaut.context.condition.ConditionContext
 import jakarta.inject.Singleton
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -18,6 +21,7 @@ import java.io.File
 import kotlin.time.Duration.Companion.seconds
 
 @Singleton
+@Requires(condition = OpenAIKeyCondition::class)
 class OpenAIService(
     @Value("\${open-ai.key}")
     private val openAIKey: String,
@@ -44,5 +48,11 @@ class OpenAIService(
             return res.text
         }
 
+    }
+}
+class OpenAIKeyCondition : Condition {
+    override fun matches(context: ConditionContext<*>): Boolean {
+        val token = context.getProperty("open-ai.key", String::class.java).orElse("")
+        return token.isNotEmpty()
     }
 }

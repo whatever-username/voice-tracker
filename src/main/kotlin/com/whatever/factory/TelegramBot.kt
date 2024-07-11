@@ -43,7 +43,7 @@ class TelegramBot(
     private val audioHandler: AudioHandler,
     private val mapper: ObjectMapper,
     private val coordinatorService: CoordinatorService,
-    private val openAIService: OpenAIService,
+    private val openAIService: OpenAIService? = null,
 
     @Value("\${telegram.bot.token}") private val botToken: String,
     @Value("\${telegram.bot.webhook-url}") private val webhookUrl: String,
@@ -163,7 +163,7 @@ class TelegramBot(
                         }
                     sendAudioToTelegramChat(
                         threadId = telegramSubgroupId,
-                        caption = openAIService.voiceToText(file),
+                        caption = openAIService?.voiceToText(file),
                         file = file
                     )
                     bot.deleteMessage(message.message.chat.id.toChatId(), message.message.message_id)

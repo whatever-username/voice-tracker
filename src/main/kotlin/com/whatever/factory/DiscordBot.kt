@@ -6,7 +6,10 @@ import com.whatever.log
 import com.whatever.model.UserState
 import com.whatever.service.AudioHandler
 import com.whatever.service.CoordinatorService
+import io.micronaut.context.annotation.Requires
 import io.micronaut.context.annotation.Value
+import io.micronaut.context.condition.Condition
+import io.micronaut.context.condition.ConditionContext
 import io.micronaut.runtime.event.ApplicationStartupEvent
 import io.micronaut.runtime.event.annotation.EventListener
 import jakarta.inject.Provider
@@ -22,7 +25,9 @@ import net.dv8tion.jda.api.events.user.update.GenericUserPresenceEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 import net.dv8tion.jda.api.requests.GatewayIntent
 
+
 @Singleton
+@Requires(condition = DiscordBotTokenCondition::class)
 class DiscordBot(
     @Value("\${discord.usernames-to-record}") private val usernamesToRecord: List<String>,
     @Value("\${discord.bot.token}") private val botToken: String,
@@ -121,5 +126,12 @@ class DiscordBot(
             appendLine(userStates.filter { it.presence != null }
                 .joinToString("\n") { "<code>${it.user.name}: ${it.presence?.name}</code>" })
         }.takeIf { it.isNotBlank() } ?: ""
+    }
+}
+
+class DiscordBotTokenCondition : Condition {
+    override fun matches(context: ConditionContext<*>): Boolean {
+        val token = context.getProperty("discord.bot.token", String::class.java).orElse("")
+        return token.isNotEmpty()
     }
 }
