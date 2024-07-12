@@ -39,7 +39,7 @@ class CoordinatorService(
 
     private suspend fun processChannelItems() {
         for (item in channel) {
-            var item = item.trim().trimIndent()
+            var item = item.trim()
             val start = System.currentTimeMillis()
             log("Event: ${if (item.isNotEmpty()) "\n$item\n" else ""}")
 
@@ -89,16 +89,18 @@ class CoordinatorService(
         log("Processing non-blank item")
         log("lastMessageIdInChat: ${lastMessageIdInChat.get()}, eventsMessageId: ${eventsMessageId.get()}")
         if (lastMessageIdInChat.get() != eventsMessageId.get()) {
+            log("sending new message, deleting $messageIds")
             deleteCacheMessages()
             val newMessageId = telegramBot.get().sendToChat(item).get().messageId
             updateMessageIds(newMessageId)
         } else {
+            log("editing message ${eventsMessageId.get()}")
             telegramBot.get().editInChat(item, eventsMessageId.get())
         }
         lastMessage = item
     }
 
-    private suspend fun processBlankItem() {
+    private fun processBlankItem() {
         log("Processing blank item")
         deleteCacheMessages()
         lastMessage = ""
@@ -116,7 +118,7 @@ class CoordinatorService(
     }
 
     private fun deleteCacheMessages() {
-        val toDelete = messageIds.toSet()
+        val toDelete = HashSet(messageIds)
         messageIds.clear()
         IOScope.launch {
             log("Deleting messages: $toDelete")
