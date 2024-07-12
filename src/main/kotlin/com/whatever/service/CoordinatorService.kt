@@ -39,15 +39,15 @@ class CoordinatorService(
 
     private suspend fun processChannelItems() {
         for (item in channel) {
-            val item = item.trim()
+            var item = item.trim().trimIndent()
             val start = System.currentTimeMillis()
-            log("Event: ${if (item.isNotBlank()) "\n$item\n" else ""}")
+            log("Event: ${if (item.isNotEmpty()) "\n$item\n" else ""}")
 
             messageIdsMutex.withLock {
                 log(buildString {
                     appendLine()
-                    appendLine("lastMessageIdInChat: ${lastMessageIdInChat.value}")
-                    appendLine("eventsMessageId: ${eventsMessageId.value}")
+                    appendLine("lastMessageIdInChat: ${lastMessageIdInChat.get()}")
+                    appendLine("eventsMessageId: ${eventsMessageId.get()}")
                     appendLine("messageIds: ${messageIds}")
                     appendLine("lastMessage: ${lastMessage?.let { if (it.length > 20) it.take(10) + "..." + it.takeLast(10) else it}}")
                 })
@@ -64,7 +64,7 @@ class CoordinatorService(
     private suspend fun periodicallySendActivities() {
         while (true) {
             delay(60 * 1000)
-            if (lastMessageIdInChat.value != eventsMessageId.value) {
+            if (lastMessageIdInChat.get() != eventsMessageId.get()) {
                 scope.launch {
                     lastMessage?.let { sendActivities(it) }
                 }
@@ -74,37 +74,40 @@ class CoordinatorService(
     }
 
     private fun itemShouldBeProcessed(item: String): Boolean {
-        return item != lastMessage || (lastMessageIdInChat.value != eventsMessageId.value)
+        return item != lastMessage || (lastMessageIdInChat.get() != eventsMessageId.get())
     }
 
     private suspend fun handleItem(item: String) {
-        if (item.isNotBlank()) {
+        if (item.isNotEmpty()) {
             processNonBlankItem(item)
         } else {
             processBlankItem()
         }
     }
 
-    private suspend fun processNonBlankItem(item: String) {
-        if (lastMessageIdInChat.value != eventsMessageId.value) {
+    private fun processNonBlankItem(item: String) {
+        log("Processing non-blank item")
+        log("lastMessageIdInChat: ${lastMessageIdInChat.get()}, eventsMessageId: ${eventsMessageId.get()}")
+        if (lastMessageIdInChat.get() != eventsMessageId.get()) {
             deleteCacheMessages()
             val newMessageId = telegramBot.get().sendToChat(item).get().messageId
             updateMessageIds(newMessageId)
-            eventsMessageId.value = newMessageId
         } else {
-            telegramBot.get().editInChat(item, eventsMessageId.value)
+            telegramBot.get().editInChat(item, eventsMessageId.get())
         }
         lastMessage = item
     }
 
     private suspend fun processBlankItem() {
+        log("Processing blank item")
         deleteCacheMessages()
         lastMessage = ""
-        eventsMessageId.value = 0
+        eventsMessageId.set(0)
     }
 
     private fun updateMessageIds(newMessageId: Long) {
-        lastMessageIdInChat.value = newMessageId
+        lastMessageIdInChat.set(newMessageId)
+        eventsMessageId.set(newMessageId)
         messageIds.add(newMessageId)
     }
 
@@ -112,15 +115,24 @@ class CoordinatorService(
         channel.send(string)
     }
 
-    private suspend fun deleteCacheMessages() {
+    private fun deleteCacheMessages() {
         val toDelete = messageIds.toSet()
         messageIds.clear()
         IOScope.launch {
-            toDelete.forEach { telegramBot.get().deleteInTargetChat(it) }
+            log("Deleting messages: $toDelete")
+            toDelete.forEach { telegramBot.get().deleteInTargetChat(it).let {
+                if (it.isError){
+                    log("Error on deleting message")
+                }
+            } }
         }
     }
 
-    fun setLastMessageIdInChat(value: Long) {
-        lastMessageIdInChat.value = value
+    suspend fun setLastMessageIdInChat(value: Long) {
+        messageIdsMutex.withLock {
+            lastMessageIdInChat.set(value)
+            log("lastMessageIdInChat: $value")
+        }
+
     }
 }

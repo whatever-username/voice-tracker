@@ -119,7 +119,6 @@ class TelegramBot(
             message {
                 if (message.chat.id == targetChatId) {
                     message.messageId.let { coordinatorService.setLastMessageIdInChat(it) }
-                    IOScope.launch { runCatching { mapper.writeValueAsString(message) } }
                 }
             }
         }
