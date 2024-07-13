@@ -1,6 +1,5 @@
 package com.whatever.service
 
-import co.touchlab.stately.concurrency.value
 import com.whatever.IOScope
 import com.whatever.factory.TelegramBot
 import com.whatever.log
@@ -49,7 +48,15 @@ class CoordinatorService(
                     appendLine("lastMessageIdInChat: ${lastMessageIdInChat.get()}")
                     appendLine("eventsMessageId: ${eventsMessageId.get()}")
                     appendLine("messageIds: ${messageIds}")
-                    appendLine("lastMessage: ${lastMessage?.let { if (it.length > 20) it.take(10) + "..." + it.takeLast(10) else it}}")
+                    appendLine(
+                        "lastMessage: ${
+                            lastMessage?.let {
+                                if (it.length > 20) it.take(10) + "..." + it.takeLast(
+                                    10
+                                ) else it
+                            }
+                        }"
+                    )
                 })
                 if (itemShouldBeProcessed(item)) {
                     handleItem(item)
@@ -95,7 +102,14 @@ class CoordinatorService(
             updateMessageIds(newMessageId)
         } else {
             log("editing message ${eventsMessageId.get()}")
-            telegramBot.get().editInChat(item, eventsMessageId.get())
+            val res = telegramBot.get().editInChat(item, eventsMessageId.get())
+            log("Editing result: ${res.first} ${res.second}")
+            if (res.second!=null || res.first?.isSuccessful == false){
+                deleteCacheMessages()
+                log("Editing failed, handling as 'wanna be' new message")
+                eventsMessageId.set(0)
+                processNonBlankItem(item)
+            }
         }
         lastMessage = item
     }
@@ -122,11 +136,10 @@ class CoordinatorService(
         messageIds.clear()
         IOScope.launch {
             log("Deleting messages: $toDelete")
-            toDelete.forEach { telegramBot.get().deleteInTargetChat(it).let {
-                if (it.isError){
-                    log("Error on deleting message")
-                }
-            } }
+            toDelete.forEach {
+                val res = telegramBot.get().deleteInTargetChat(it)
+                log("Deleting $it ${res.get()}")
+            }
         }
     }
 
