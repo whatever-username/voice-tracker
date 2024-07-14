@@ -69,6 +69,7 @@ class AudioHandler(
         IOScope.launch {
             val username = userAudio.user.name
             if (username in usernamesToRecord) {
+                log("Received audio from $username")
                 try {
                     queues.computeIfAbsent(username) { ConcurrentLinkedQueue() }.add(userAudio.getAudioData(1.0))
                     delayFlushingRecordedCache(username)
@@ -97,10 +98,11 @@ class AudioHandler(
         val curQueue: Queue<ByteArray> = queues[username] ?: return@launch
         queues[username] = ConcurrentLinkedQueue()
 
-        if (curQueue.sumOf { it.size } < 1000) {
+        if (curQueue.sumOf { it.size } < 2000) {
+            curQueue.clear()
             return@launch
         }
-
+        log("Audiodata size: ${curQueue.sumOf { it.size }}")
         val file = curQueue.let { queue ->
             ByteArrayOutputStream().use { tempOutputStream ->
                 try {

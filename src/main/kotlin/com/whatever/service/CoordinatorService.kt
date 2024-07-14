@@ -1,6 +1,5 @@
 package com.whatever.service
 
-import com.whatever.IOScope
 import com.whatever.factory.TelegramBot
 import com.whatever.log
 import jakarta.inject.Provider
@@ -104,7 +103,7 @@ class CoordinatorService(
             log("editing message ${eventsMessageId.get()}")
             val res = telegramBot.get().editInChat(item, eventsMessageId.get())
             log("Editing result: ${res.first} ${res.second}")
-            if (res.second!=null || res.first?.isSuccessful == false){
+            if (res.second != null || res.first?.isSuccessful == false) {
                 deleteCacheMessages()
                 log("Editing failed, handling as 'wanna be' new message")
                 eventsMessageId.set(0)
@@ -134,12 +133,10 @@ class CoordinatorService(
     private fun deleteCacheMessages() {
         val toDelete = HashSet(messageIds)
         messageIds.clear()
-        IOScope.launch {
-            log("Deleting messages: $toDelete")
-            toDelete.forEach {
-                val res = telegramBot.get().deleteInTargetChat(it)
-                log("Deleting $it ${res.get()}")
-            }
+        log("Deleting messages: $toDelete")
+        toDelete.forEach {
+            val res = runCatching { telegramBot.get().deleteInTargetChat(it) }.exceptionOrNull()
+            log("Deleting $it ${res?.message?:"deleted"}")
         }
     }
 
