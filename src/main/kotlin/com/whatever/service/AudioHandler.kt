@@ -104,7 +104,7 @@ class AudioHandler(
         }
     }
 
-    private fun writeAudioData(username: String) = IOScope.launch {
+    private suspend fun writeAudioData(username: String) = IOScope.launch {
         logger.debug("Flushing audio data for $username")
 
         val curQueue: Queue<ByteArray> = queues[username] ?: return@launch

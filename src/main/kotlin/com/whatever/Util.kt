@@ -28,7 +28,7 @@ inline fun <reified T> T.logInfo(message: Any?) {
 inline fun <reified T> T.logError(ex: Throwable, bot: TelegramBot? = null) {
     val logger = logger()
     ex.stackTraceToString().let {
-        logger.error("\n> $it")
+        logger.error(it)
         bot?.sendToMainAdmin(if (it.length > 1000) it.substring(0, 1000) else it)
 
     }
