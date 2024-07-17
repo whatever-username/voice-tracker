@@ -2,7 +2,7 @@ package com.whatever.factory
 
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers
 import com.whatever.containsOneOf
-import com.whatever.log
+import com.whatever.logError
 import com.whatever.model.UserState
 import com.whatever.service.AudioHandler
 import com.whatever.service.CoordinatorService
@@ -83,10 +83,7 @@ class DiscordBot(
                 }
             }
         }.exceptionOrNull()?.let {
-            with("Error while starting Discord bot: ${it.message}") {
-                log(this)
-                telegramBot.get().sendToMainAdmin(this)
-            }
+            logError("Error while starting Discord bot: ${it.message}", telegramBot.get())
 
         }
 

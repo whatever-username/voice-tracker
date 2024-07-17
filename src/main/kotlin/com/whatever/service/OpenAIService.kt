@@ -7,7 +7,7 @@ import com.aallam.openai.api.logging.LogLevel
 import com.aallam.openai.api.model.ModelId
 import com.aallam.openai.client.LoggingConfig
 import com.aallam.openai.client.OpenAI
-import com.whatever.log
+import com.whatever.logDebug
 import io.micronaut.context.annotation.Requires
 import io.micronaut.context.annotation.Value
 import io.micronaut.context.condition.Condition
@@ -37,7 +37,7 @@ class OpenAIService(
 
     suspend fun voiceToText(file: File): String {
         chatGptMutex.withLock {
-            log("voiceToText file: ${file.name}")
+            logDebug("voiceToText file: ${file.name}")
             val res = openAI.transcription(
                 TranscriptionRequest(
                     language = "RU",
@@ -50,6 +50,7 @@ class OpenAIService(
 
     }
 }
+
 class OpenAIKeyCondition : Condition {
     override fun matches(context: ConditionContext<*>): Boolean {
         val token = context.getProperty("open-ai.key", String::class.java).orElse("")

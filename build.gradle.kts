@@ -18,11 +18,11 @@ repositories {
 }
 
 dependencies {
+    implementation("ch.qos.logback:logback-classic:1.5.6")
 
     ksp("io.micronaut:micronaut-http-validation")
     ksp("io.micronaut.serde:micronaut-serde-processor")
     implementation ("com.github.walkyst:lavaplayer-fork:1.4.3")
-    implementation ("ch.qos.logback:logback-classic:1.2.11") // Use the latest stable version
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("de.sciss:jump3r:1.0.5")
     implementation("dev.kord:kord-core:0.13.0")
@@ -39,7 +39,6 @@ dependencies {
     implementation("jakarta.annotation:jakarta.annotation-api")
     implementation("org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:${kotlinVersion}")
-//    runtimeOnly("ch.qos.logback:logback-classic")
     runtimeOnly("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.2")
     runtimeOnly("org.yaml:snakeyaml")

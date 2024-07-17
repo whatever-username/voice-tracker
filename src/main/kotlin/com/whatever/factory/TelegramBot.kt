@@ -11,9 +11,9 @@ import com.github.kotlintelegrambot.entities.ChatId
 import com.github.kotlintelegrambot.entities.ParseMode
 import com.github.kotlintelegrambot.logging.LogLevel
 import com.github.kotlintelegrambot.webhook
-import com.whatever.IOScope
 import com.whatever.TagsMapConfig
-import com.whatever.log
+import com.whatever.logError
+import com.whatever.logInfo
 import com.whatever.model.dto.MessageDTO
 import com.whatever.model.dto.MessageUpdateDTO
 import com.whatever.service.AudioHandler
@@ -58,11 +58,11 @@ class TelegramBot(
 
     val bot = bot {
         webhook {
-            url = webhookUrl.also { log("Webhook URL: $it") }
+            url = webhookUrl.also { logInfo("Webhook URL: $it") }
             maxConnections = 50
             allowedUpdates = listOf("message")
         }
-        token = botToken.also { log("Bot token: $it") }
+        token = botToken.also { logInfo("Bot token: $it") }
         logLevel = LogLevel.Error
         dispatch {
             tagsMapConfig.tagsMap.forEach { (tag, vals) ->
@@ -80,7 +80,7 @@ class TelegramBot(
             }
             command("restart") { exitProcess(1) }
             command("send") {
-                log("send command from ${message.from?.username}")
+                logInfo("send command from ${message.from?.username}")
                 runCatching {
                     if (message.from?.id in adminsTelegramIds) {
                         message.replyToMessage?.audio?.fileId?.let {
@@ -88,27 +88,27 @@ class TelegramBot(
                         }
                         bot.deleteMessage(ChatId.fromId(message.chat.id), message.messageId)
                     }
-                }.exceptionOrNull()?.let { log("Error on sending: ${it.message}") }
+                }.exceptionOrNull()?.let { logInfo("Error on sending: ${it.message}") }
 
             }
             command("play") {
-                log("play command from ${message.from?.username}")
+                logInfo("play command from ${message.from?.username}")
                 if (message.from?.id in adminsTelegramIds) {
                     runCatching {
                         args.getOrNull(1)?.takeIf { it.startsWith("http") }?.let { url ->
                             CoroutineScope(Dispatchers.IO).launch { audioHandler.playMp3InDiscord(url) }
                         }
                         bot.deleteMessage(ChatId.fromId(message.chat.id), message.messageId)
-                    }.exceptionOrNull()?.let { log("Error on playing: ${it.message}") }
+                    }.exceptionOrNull()?.let { logError("Error on playing: ${it.message}") }
                 }
             }
             command("stop") {
-                log("stop command from ${message.from?.username}")
+                logInfo("stop command from ${message.from?.username}")
                 if (message.from?.id in adminsTelegramIds) {
                     runCatching {
                         audioHandler.stopPlayingInDiscord()
                         bot.deleteMessage(ChatId.fromId(message.chat.id), message.messageId)
-                    }.exceptionOrNull()?.let { log("Error on stopping: ${it.message}") }
+                    }.exceptionOrNull()?.let { logError("Error on stopping: ${it.message}") }
 
                 }
             }
@@ -126,8 +126,8 @@ class TelegramBot(
 
     @EventListener
     fun startup(event: ApplicationStartupEvent) {
-        bot.deleteWebhook(true).also { log("Webhook deletion") }
-        bot.startWebhook().also { log("Webhook started: $it") }
+        bot.deleteWebhook(true).also { logInfo("Webhook deletion") }
+        bot.startWebhook().also { logInfo("Webhook started: $it") }
         bot.sendMessage(mainAdmin.toChatId(), "restarted")
     }
 
@@ -148,7 +148,7 @@ class TelegramBot(
         val message = try {
             mapper.readValue(update, MessageUpdateDTO::class.java)
         } catch (e: Exception) {
-            log("Error on parsing message in thread: ${e.message}")
+            logError("Error on parsing message in thread: ${e.message}")
             return
         }
         if (message.message.message_thread_id != telegramSubgroupId) return

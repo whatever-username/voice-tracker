@@ -8,11 +8,12 @@
     </appender>
 
     <!-- Root logger configuration -->
-    <root level="WARN">
+    <root level="INFO">
         <appender-ref ref="STDOUT" />
     </root>
 
     <!-- Logger for a specific package or class -->
-    <logger name="io.micronaut" level="WARN" />
+    <logger name="com.whatever.service.AudioHandler" level="DEBUG" />
+    <logger name="com.whatever.service.Mp3Encoder" level="DEBUG" />
 
 </configuration>

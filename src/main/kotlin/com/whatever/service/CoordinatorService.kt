@@ -1,7 +1,7 @@
 package com.whatever.service
 
 import com.whatever.factory.TelegramBot
-import com.whatever.log
+import com.whatever.logDebug
 import jakarta.inject.Provider
 import jakarta.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -31,6 +31,7 @@ class CoordinatorService(
     private val scope = CoroutineScope(dispatcher)
 
     init {
+        logDebug("QWEQWEWQEQWEWQWEQEQQE")
         scope.launch { processChannelItems() }
         scope.launch { periodicallySendActivities() }
     }
@@ -39,10 +40,10 @@ class CoordinatorService(
         for (item in channel) {
             var item = item.trim()
             val start = System.currentTimeMillis()
-            log("Event: ${if (item.isNotEmpty()) "\n$item\n" else ""}")
+            logDebug("Event: ${if (item.isNotEmpty()) "\n$item\n" else ""}")
 
             messageIdsMutex.withLock {
-                log(buildString {
+                logDebug(buildString {
                     appendLine()
                     appendLine("lastMessageIdInChat: ${lastMessageIdInChat.get()}")
                     appendLine("eventsMessageId: ${eventsMessageId.get()}")
@@ -92,20 +93,20 @@ class CoordinatorService(
     }
 
     private fun processNonBlankItem(item: String) {
-        log("Processing non-blank item")
-        log("lastMessageIdInChat: ${lastMessageIdInChat.get()}, eventsMessageId: ${eventsMessageId.get()}")
+        logDebug("Processing non-blank item")
+        logDebug("lastMessageIdInChat: ${lastMessageIdInChat.get()}, eventsMessageId: ${eventsMessageId.get()}")
         if (lastMessageIdInChat.get() != eventsMessageId.get()) {
-            log("sending new message, deleting $messageIds")
+            logDebug("sending new message, deleting $messageIds")
             deleteCacheMessages()
             val newMessageId = telegramBot.get().sendToChat(item).get().messageId
             updateMessageIds(newMessageId)
         } else {
-            log("editing message ${eventsMessageId.get()}")
+            logDebug("editing message ${eventsMessageId.get()}")
             val res = telegramBot.get().editInChat(item, eventsMessageId.get())
-            log("Editing result: ${res.first} ${res.second}")
+            logDebug("Editing result: ${res.first} ${res.second}")
             if (res.second != null || res.first?.isSuccessful == false) {
                 deleteCacheMessages()
-                log("Editing failed, handling as 'wanna be' new message")
+                logDebug("Editing failed, handling as 'wanna be' new message")
                 eventsMessageId.set(0)
                 processNonBlankItem(item)
             }
@@ -114,7 +115,7 @@ class CoordinatorService(
     }
 
     private fun processBlankItem() {
-        log("Processing blank item")
+        logDebug("Processing blank item")
         deleteCacheMessages()
         lastMessage = ""
         eventsMessageId.set(0)
@@ -133,17 +134,17 @@ class CoordinatorService(
     private fun deleteCacheMessages() {
         val toDelete = HashSet(messageIds)
         messageIds.clear()
-        log("Deleting messages: $toDelete")
+        logDebug("Deleting messages: $toDelete")
         toDelete.forEach {
             val res = runCatching { telegramBot.get().deleteInTargetChat(it) }.exceptionOrNull()
-            log("Deleting $it ${res?.message?:"deleted"}")
+            logDebug("Deleting $it ${res?.message ?: "deleted"}")
         }
     }
 
     suspend fun setLastMessageIdInChat(value: Long) {
         messageIdsMutex.withLock {
             lastMessageIdInChat.set(value)
-            log("lastMessageIdInChat: $value")
+            logDebug("lastMessageIdInChat: $value")
         }
 
     }

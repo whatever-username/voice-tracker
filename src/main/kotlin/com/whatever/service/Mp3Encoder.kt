@@ -1,15 +1,14 @@
 package com.whatever.service;
 
-import com.whatever.log
+import com.whatever.logDebug
+import com.whatever.logError
 import de.sciss.jump3r.lowlevel.LameEncoder
 import de.sciss.jump3r.mp3.Lame
 import jakarta.inject.Singleton
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
 import javax.sound.sampled.AudioFormat
 import kotlin.math.min
-import org.slf4j.LoggerFactory
 
 @Singleton
 class Mp3Encoder {
@@ -30,34 +29,28 @@ class Mp3Encoder {
 
     private val encoder = LameEncoder(audioFormat, bitRate, channelMode, lameQuality, vbr)
 
-    fun encodePcmToMp3(username: String, pcm: ByteArray): String {
-        val fileName = "mp3/$username/${System.currentTimeMillis()}.mp3"
-        try {
-            val userDirectory = File("mp3/$username")
-            if (!userDirectory.exists()) {
-                userDirectory.mkdirs()
-            }
+    fun encodePcmToMp3(username: String, pcm: ByteArray): String? {
+        val userDirectory = File("mp3/$username").apply { mkdirs() }
+        val fileName = "${userDirectory.path}/${System.currentTimeMillis()}.mp3"
+
+        logDebug("Creating mp3 file $fileName")
+
+        return try {
             FileOutputStream(File(fileName), false).use { mp3 ->
                 val buffer = ByteArray(encoder.pcmBufferSize)
-                var bytesToTransfer = min(buffer.size.toDouble(), pcm.size.toDouble()).toInt()
-                var bytesWritten: Int
                 var currentPcmPosition = 0
-                while (0 < encoder.encodeBuffer(pcm, currentPcmPosition, bytesToTransfer, buffer)
-                        .also { bytesWritten = it }
-                ) {
-                    currentPcmPosition += bytesToTransfer
-                    bytesToTransfer =
-                        min(buffer.size.toDouble(), (pcm.size - currentPcmPosition).toDouble()).toInt()
+                while (currentPcmPosition < pcm.size) {
+                    val bytesToTransfer = min(buffer.size, pcm.size - currentPcmPosition)
+                    val bytesWritten = encoder.encodeBuffer(pcm, currentPcmPosition, bytesToTransfer, buffer)
+                    if (bytesWritten <= 0) break
                     mp3.write(buffer, 0, bytesWritten)
+                    currentPcmPosition += bytesToTransfer
                 }
             }
-        } catch (e: IOException) {
-            log("IOException: ${e.message}")
-            e.printStackTrace()
-        } catch (e: OutOfMemoryError) {
-            log("OutOfMemoryError: ${e.message}")
-            e.printStackTrace()
+            fileName
+        } catch (e: Throwable) {
+            logError(e)
+            null
         }
-        return fileName
     }
 }
