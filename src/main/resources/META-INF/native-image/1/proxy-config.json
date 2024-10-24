@@ -1,0 +1,8 @@
+[
+  {
+    "interfaces":["com.github.kotlintelegrambot.network.ApiService"]
+  },
+  {
+    "interfaces":["tomp2p.opuswrapper.Opus"]
+  }
+]

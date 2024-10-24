@@ -5,6 +5,8 @@ plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
     id("io.micronaut.application") version "4.4.0"
     id("io.micronaut.aot") version "4.4.0"
+    id("com.github.ben-manes.versions") version "0.51.0"
+
 }
 
 version = "0.1"
@@ -19,6 +21,7 @@ repositories {
 
 dependencies {
     implementation("ch.qos.logback:logback-classic:1.5.6")
+    implementation("com.mpatric:mp3agic:0.9.1")
 
     ksp("io.micronaut:micronaut-http-validation")
     ksp("io.micronaut.serde:micronaut-serde-processor")

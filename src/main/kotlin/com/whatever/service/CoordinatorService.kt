@@ -12,6 +12,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.File
+import java.time.Duration
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.max
@@ -19,6 +21,7 @@ import kotlin.math.max
 @Singleton
 class CoordinatorService(
     private val telegramBot: Provider<TelegramBot>,
+    private val audioHandler: AudioHandler
 ) {
 
     private val channel = Channel<String>(capacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -29,9 +32,9 @@ class CoordinatorService(
     private val eventsMessageId = AtomicLong(0)
     private val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     private val scope = CoroutineScope(dispatcher)
+    private val lastMessageSentTime = AtomicLong(System.currentTimeMillis())
 
     init {
-        logDebug("QWEQWEWQEQWEWQWEQEQQE")
         scope.launch { processChannelItems() }
         scope.launch { periodicallySendActivities() }
     }
@@ -71,7 +74,8 @@ class CoordinatorService(
     private suspend fun periodicallySendActivities() {
         while (true) {
             delay(60 * 1000)
-            if (lastMessageIdInChat.get() != eventsMessageId.get()) {
+            logDebug("Passed from last: "+ (System.currentTimeMillis() - lastMessageSentTime.get()))
+            if (lastMessageIdInChat.get() != eventsMessageId.get() || isOld()) {
                 scope.launch {
                     lastMessage?.let { sendActivities(it) }
                 }
@@ -81,10 +85,12 @@ class CoordinatorService(
     }
 
     private fun itemShouldBeProcessed(item: String): Boolean {
-        return item != lastMessage || (lastMessageIdInChat.get() != eventsMessageId.get())
+        return isOld() || item != lastMessage || (lastMessageIdInChat.get() != eventsMessageId.get())
     }
 
     private suspend fun handleItem(item: String) {
+        audioHandler.playFromFile(this::class.java.getResource("/audio/test.mp3").let { File(it!!.toURI()) })
+
         if (item.isNotEmpty()) {
             processNonBlankItem(item)
         } else {
@@ -95,10 +101,11 @@ class CoordinatorService(
     private fun processNonBlankItem(item: String) {
         logDebug("Processing non-blank item")
         logDebug("lastMessageIdInChat: ${lastMessageIdInChat.get()}, eventsMessageId: ${eventsMessageId.get()}")
-        if (lastMessageIdInChat.get() != eventsMessageId.get()) {
+        if (lastMessageIdInChat.get() != eventsMessageId.get() || isOld()) {
             logDebug("sending new message, deleting $messageIds")
             deleteCacheMessages()
             val newMessageId = telegramBot.get().sendToChat(item).get().messageId
+            lastMessageSentTime.set(System.currentTimeMillis())
             updateMessageIds(newMessageId)
         } else {
             logDebug("editing message ${eventsMessageId.get()}")
@@ -130,7 +137,9 @@ class CoordinatorService(
     suspend fun sendActivities(string: String) {
         channel.send(string)
     }
-
+    fun isOld(): Boolean {
+        return (System.currentTimeMillis() - lastMessageSentTime.get()) > Duration.ofMinutes(5).toMillis()
+    }
     private fun deleteCacheMessages() {
         val toDelete = HashSet(messageIds)
         messageIds.clear()

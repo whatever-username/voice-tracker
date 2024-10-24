@@ -4,6 +4,7 @@ import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager
 import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager
+import com.sedmelluq.discord.lavaplayer.source.local.LocalAudioSourceManager
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
@@ -12,6 +13,8 @@ import com.whatever.RateLimiter
 import com.whatever.factory.TelegramBot
 import com.whatever.logError
 import io.micronaut.context.annotation.Value
+import io.micronaut.runtime.event.ApplicationStartupEvent
+import io.micronaut.runtime.event.annotation.EventListener
 import jakarta.inject.Provider
 import jakarta.inject.Singleton
 import kotlinx.coroutines.Job
@@ -43,7 +46,10 @@ class AudioHandler(
 
     lateinit var channel: AudioChannel
     lateinit var audioManager: AudioManager
-    val playerManager: AudioPlayerManager = DefaultAudioPlayerManager()
+    val playerManager: AudioPlayerManager = DefaultAudioPlayerManager().apply {
+        registerSourceManager(LocalAudioSourceManager())
+
+    }
     val player: AudioPlayer = playerManager.createPlayer()
     val audioSendHandler = AudioPlayerSendHandler(player)
 
@@ -159,7 +165,9 @@ class AudioHandler(
         }
 
     }
-
+    fun playFromFile(file: File){
+        playerManager.loadItem(file.absolutePath, audioLoadResultHandler)
+    }
     fun stopPlayingInDiscord() {
         player.stopTrack()
     }

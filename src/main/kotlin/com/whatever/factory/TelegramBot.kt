@@ -11,6 +11,7 @@ import com.github.kotlintelegrambot.entities.ChatId
 import com.github.kotlintelegrambot.entities.ParseMode
 import com.github.kotlintelegrambot.logging.LogLevel
 import com.github.kotlintelegrambot.webhook
+import com.mpatric.mp3agic.Mp3File
 import com.whatever.TagsMapConfig
 import com.whatever.logError
 import com.whatever.logInfo
@@ -26,6 +27,12 @@ import io.micronaut.runtime.event.annotation.EventListener
 import jakarta.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -34,7 +41,10 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
+import java.io.SequenceInputStream
+import java.nio.file.Files
 import kotlin.system.exitProcess
 
 
@@ -55,7 +65,6 @@ class TelegramBot(
     private val tagsMapConfig: TagsMapConfig,
 ) {
     private val client = OkHttpClient()
-
     val bot = bot {
         webhook {
             url = webhookUrl.also { logInfo("Webhook URL: $it") }
@@ -144,7 +153,8 @@ class TelegramBot(
         "https://api.telegram.org/file/bot${botToken}/${fileUrl}"
     }.getOrNull()
 
-    suspend fun processMessageThread(update: String) {
+
+    fun processMessageThread(update: String) {
         val message = try {
             mapper.readValue(update, MessageUpdateDTO::class.java)
         } catch (e: Exception) {
@@ -153,23 +163,39 @@ class TelegramBot(
         }
         if (message.message.message_thread_id != telegramSubgroupId) return
         message.message.audio?.file_id?.let {
-            CoroutineScope(Dispatchers.IO).launch {
-                getVoiceLink(it)?.let { url ->
-                    val file = File.createTempFile("voice", ".mp3")
-                    client.newCall(Request.Builder().url(url.toHttpUrl()).build()).execute().body?.byteStream()
-                        ?.use { input ->
-                            file.outputStream().use { output -> input.copyTo(output) }
-                        }
-                    sendAudioToTelegramChat(
-                        threadId = telegramSubgroupId,
-                        caption = openAIService?.voiceToText(file),
-                        file = file
-                    )
-                    bot.deleteMessage(message.message.chat.id.toChatId(), message.message.message_id)
-                    file.delete()
-                }
-            }
+            processAudiofileInFavChannel(it)
         }
+        bot.deleteMessage(message.message.chat.id.toChatId(), message.message.message_id)
+
+    }
+
+    private val audioCache = mutableSetOf<String>()
+    private var batchAudioProcessJob: Job? = null
+
+    fun processAudiofileInFavChannel(fileId: String) {
+        audioCache += fileId
+        batchAudioProcessJob?.cancel()
+        batchAudioProcessJob = batchAudioProcess()
+    }
+
+    private fun batchAudioProcess() = CoroutineScope(Dispatchers.IO).launch {
+        delay(1000)
+        val files = audioCache.map { async { getVoiceLink(it)?.let { downloadFileInTmpFile(it) } } }
+        audioCache.clear()
+        val merged = concatenateMp3Files(File.createTempFile("merged", ".mp3"), files.awaitAll().filterNotNull())
+        sendAudioToTelegramChat(
+            threadId = telegramSubgroupId,
+            caption = openAIService?.voiceToText(merged),
+            file = merged
+        )
+    }
+
+    private fun downloadFileInTmpFile(fileUrl: String): File {
+        val file = File.createTempFile("voice", ".mp3")
+        client.newCall(Request.Builder().url(fileUrl.toHttpUrl()).build()).execute().body?.byteStream()?.use { input ->
+            file.outputStream().use { output -> input.copyTo(output) }
+        }
+        return file
     }
 
     fun sendAudioToTelegramChat(caption: String? = null, file: File, threadId: Long? = null): MessageDTO? {
@@ -189,6 +215,38 @@ class TelegramBot(
             return runCatching { mapper.readValue<MessageDTO>(resp.body!!.string()) }.getOrNull()
         }
     }
+
+    fun concatenateMp3Files(outputFile: File, inputFiles: List<File>): File {
+        val outputStream = FileOutputStream(outputFile)
+        val tempFiles = mutableListOf<File>()
+
+        try {
+            val inputStreams = inputFiles.map { filePath ->
+                val mp3File = Mp3File(filePath)
+                val tempFile = File.createTempFile("temp", ".mp3")
+                tempFiles.add(tempFile)
+                mp3File.save(tempFile.absolutePath)
+                Files.newInputStream(tempFile.toPath())
+            }
+
+            val sequenceInputStream = SequenceInputStream(inputStreams.iterator().asSequence().toEnumeration())
+            sequenceInputStream.use { it.copyTo(outputStream) }
+        } finally {
+            outputStream.close()
+            tempFiles.forEach { it.delete() }
+        }
+        return outputFile
+    }
+
+    // Extension function to convert a sequence to an enumeration
+    fun <T> Sequence<T>.toEnumeration(): java.util.Enumeration<T> {
+        return object : java.util.Enumeration<T> {
+            private val iterator = this@toEnumeration.iterator()
+            override fun hasMoreElements(): Boolean = iterator.hasNext()
+            override fun nextElement(): T = iterator.next()
+        }
+    }
+
 
     fun sendToMainAdmin(text: String) {
         bot.sendMessage(mainAdmin.toChatId(), text, parseMode = ParseMode.HTML)
