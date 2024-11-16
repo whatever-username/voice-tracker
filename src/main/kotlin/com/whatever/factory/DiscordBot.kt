@@ -3,6 +3,7 @@ package com.whatever.factory
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers
 import com.whatever.containsOneOf
 import com.whatever.logError
+import com.whatever.logger
 import com.whatever.model.UserState
 import com.whatever.service.AudioHandler
 import com.whatever.service.CoordinatorService
@@ -24,6 +25,7 @@ import net.dv8tion.jda.api.events.guild.voice.GuildVoiceUpdateEvent
 import net.dv8tion.jda.api.events.user.update.GenericUserPresenceEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 import net.dv8tion.jda.api.requests.GatewayIntent
+import java.io.File
 
 
 @Singleton
@@ -35,11 +37,12 @@ class DiscordBot(
     private val audioHandler: AudioHandler,
     @Value("\${discord.bot.name}") private val discordBotName: String,
     @Value("\${discord.guild-name}") private val guildName: String,
-    private val telegramBot: Provider<TelegramBot>
+    private val telegramBot: Provider<TelegramBot>,
 ) {
 
     @EventListener
     fun startup(event: ApplicationStartupEvent) {
+        logger().info("Usernames to record: ${usernamesToRecord.joinToString()}")
         runCatching {
             val jda = JDABuilder.create(
                 botToken,
@@ -57,6 +60,20 @@ class DiscordBot(
                                 !it.members.map { it.user.name }.contains(discordBotName)
                             ) {
                                 audioHandler.audioManager.openAudioConnection(it)
+                            }
+                        }
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val currentChannel = audioHandler.audioManager.connectedChannel
+                            val entered = if (event.channelJoined != null && currentChannel?.name == event.channelJoined?.name) {
+                                true
+                            } else if (event.channelLeft != null && currentChannel?.name == event.channelLeft?.name) {
+                                false
+                            } else {
+                                null
+                            }
+                            entered?.let {
+                                val file = if (it) "in.mp3" else "out.mp3"
+                                audioHandler.playFromFile(File("/audio/$file"))
                             }
                         }
                         send(event)

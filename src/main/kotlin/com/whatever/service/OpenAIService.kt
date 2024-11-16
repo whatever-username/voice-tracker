@@ -1,6 +1,9 @@
 package com.whatever.service
 
+import com.aallam.openai.api.audio.SpeechRequest
+import com.aallam.openai.api.audio.SpeechResponseFormat
 import com.aallam.openai.api.audio.TranscriptionRequest
+import com.aallam.openai.api.audio.Voice
 import com.aallam.openai.api.file.FileSource
 import com.aallam.openai.api.http.Timeout
 import com.aallam.openai.api.logging.LogLevel
@@ -46,6 +49,28 @@ class OpenAIService(
                 )
             )
             return res.text
+        }
+
+    }
+    suspend fun textToVoice(text: String, voice: String): File {
+        val filename = text.replace(" ", "_")+"_"+voice
+        val fileloc = "mp3/${filename}.mp3"
+        if (File(fileloc).exists()){
+            return File(fileloc)
+        }
+        chatGptMutex.withLock {
+            logDebug("textToVoice file: ${text}")
+            val res = openAI.speech(
+                SpeechRequest(
+                    voice = Voice(voice),
+                    model = ModelId("tts-1-hd"),
+                    input = text,
+                    responseFormat = SpeechResponseFormat.Mp3
+                )
+            )
+            val file = File(fileloc).also { it.createNewFile() }
+            file.writeBytes(res)
+            return file
         }
 
     }

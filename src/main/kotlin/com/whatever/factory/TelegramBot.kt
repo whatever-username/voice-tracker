@@ -21,6 +21,7 @@ import com.whatever.service.AudioHandler
 import com.whatever.service.CoordinatorService
 import com.whatever.service.OpenAIService
 import com.whatever.toChatId
+import dev.kord.common.concurrentHashMap
 import io.micronaut.context.annotation.Value
 import io.micronaut.runtime.event.ApplicationStartupEvent
 import io.micronaut.runtime.event.annotation.EventListener
@@ -45,6 +46,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.SequenceInputStream
 import java.nio.file.Files
+import java.util.Collections
 import kotlin.system.exitProcess
 
 
@@ -65,6 +67,7 @@ class TelegramBot(
     private val tagsMapConfig: TagsMapConfig,
 ) {
     private val client = OkHttpClient()
+
     val bot = bot {
         webhook {
             url = webhookUrl.also { logInfo("Webhook URL: $it") }

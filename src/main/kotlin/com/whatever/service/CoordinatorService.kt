@@ -21,7 +21,8 @@ import kotlin.math.max
 @Singleton
 class CoordinatorService(
     private val telegramBot: Provider<TelegramBot>,
-    private val audioHandler: AudioHandler
+    private val audioHandler: AudioHandler,
+    private val openAIService: OpenAIService
 ) {
 
     private val channel = Channel<String>(capacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -89,8 +90,6 @@ class CoordinatorService(
     }
 
     private suspend fun handleItem(item: String) {
-        audioHandler.playFromFile(this::class.java.getResource("/audio/test.mp3").let { File(it!!.toURI()) })
-
         if (item.isNotEmpty()) {
             processNonBlankItem(item)
         } else {

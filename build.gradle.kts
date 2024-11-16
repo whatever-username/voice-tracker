@@ -30,7 +30,7 @@ dependencies {
     implementation("de.sciss:jump3r:1.0.5")
     implementation("dev.kord:kord-core:0.13.0")
     implementation("net.dv8tion:JDA:5.0.0-beta.24")
-    implementation("com.aallam.openai:openai-client:3.6.2")
+    implementation("com.aallam.openai:openai-client:3.8.2")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.15.2")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("io.github.kotlin-telegram-bot.kotlin-telegram-bot:telegram:6.1.0")
