@@ -5,6 +5,8 @@ plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
     id("io.micronaut.application") version "4.4.0"
     id("io.micronaut.aot") version "4.4.0"
+    id("com.github.ben-manes.versions") version "0.51.0"
+
 }
 
 version = "0.1"
@@ -19,6 +21,7 @@ repositories {
 
 dependencies {
     implementation("ch.qos.logback:logback-classic:1.5.6")
+    implementation("com.mpatric:mp3agic:0.9.1")
 
     ksp("io.micronaut:micronaut-http-validation")
     ksp("io.micronaut.serde:micronaut-serde-processor")
@@ -27,7 +30,7 @@ dependencies {
     implementation("de.sciss:jump3r:1.0.5")
     implementation("dev.kord:kord-core:0.13.0")
     implementation("net.dv8tion:JDA:5.0.0-beta.24")
-    implementation("com.aallam.openai:openai-client:3.6.2")
+    implementation("com.aallam.openai:openai-client:3.8.2")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.15.2")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("io.github.kotlin-telegram-bot.kotlin-telegram-bot:telegram:6.1.0")

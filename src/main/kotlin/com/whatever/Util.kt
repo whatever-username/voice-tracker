@@ -4,6 +4,7 @@ import com.github.kotlintelegrambot.entities.ChatId
 import com.whatever.factory.TelegramBot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -55,7 +56,7 @@ fun <T> List<T>.containsOneOf(prefixes: List<T>): Boolean {
 }
 
 
-val IOScope = CoroutineScope(Dispatchers.IO)
+val IOScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
 class RateLimiter(private val rate: Long) {

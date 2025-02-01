@@ -4,6 +4,7 @@ import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager
 import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager
+import com.sedmelluq.discord.lavaplayer.source.local.LocalAudioSourceManager
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
@@ -43,7 +44,10 @@ class AudioHandler(
 
     lateinit var channel: AudioChannel
     lateinit var audioManager: AudioManager
-    val playerManager: AudioPlayerManager = DefaultAudioPlayerManager()
+    val playerManager: AudioPlayerManager = DefaultAudioPlayerManager().apply {
+        registerSourceManager(LocalAudioSourceManager())
+
+    }
     val player: AudioPlayer = playerManager.createPlayer()
     val audioSendHandler = AudioPlayerSendHandler(player)
 
@@ -73,6 +77,7 @@ class AudioHandler(
     private val jobsMutex = Mutex()
 
     override fun handleUserAudio(userAudio: UserAudio) {
+
         IOScope.launch {
             val username = userAudio.user.name
             if (username in usernamesToRecord) {
@@ -89,7 +94,6 @@ class AudioHandler(
                 }
             }
         }
-
 
     }
 
@@ -110,7 +114,7 @@ class AudioHandler(
         val curQueue: Queue<ByteArray> = queues[username] ?: return@launch
         queues[username] = ConcurrentLinkedQueue()
 
-        if (curQueue.sumOf { it.size } < 5000) {
+        if (curQueue.sumOf { it.size } < 10000) {
             curQueue.clear()
             return@launch
         }
@@ -158,6 +162,10 @@ class AudioHandler(
             logger.logError("Error on playing mp3 in Discord: " + e.stackTraceToString())
         }
 
+    }
+
+    fun playFromFile(file: File) {
+        playerManager.loadItem(file.absolutePath, audioLoadResultHandler)
     }
 
     fun stopPlayingInDiscord() {

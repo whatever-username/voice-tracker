@@ -5,6 +5,7 @@ import com.whatever.logDebug
 import jakarta.inject.Provider
 import jakarta.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
@@ -12,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.time.Duration
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.max
@@ -28,10 +30,10 @@ class CoordinatorService(
     private val lastMessageIdInChat = AtomicLong(1)
     private val eventsMessageId = AtomicLong(0)
     private val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-    private val scope = CoroutineScope(dispatcher)
+    private val scope = CoroutineScope(dispatcher + SupervisorJob())
+    private val lastMessageSentTime = AtomicLong(System.currentTimeMillis())
 
     init {
-        logDebug("QWEQWEWQEQWEWQWEQEQQE")
         scope.launch { processChannelItems() }
         scope.launch { periodicallySendActivities() }
     }
@@ -70,8 +72,9 @@ class CoordinatorService(
 
     private suspend fun periodicallySendActivities() {
         while (true) {
-            delay(60 * 1000)
-            if (lastMessageIdInChat.get() != eventsMessageId.get()) {
+            delay(5 * 60 * 1000)
+            logDebug("Passed from last: " + (System.currentTimeMillis() - lastMessageSentTime.get()))
+            if (lastMessageIdInChat.get() != eventsMessageId.get() || isOld()) {
                 scope.launch {
                     lastMessage?.let { sendActivities(it) }
                 }
@@ -81,7 +84,7 @@ class CoordinatorService(
     }
 
     private fun itemShouldBeProcessed(item: String): Boolean {
-        return item != lastMessage || (lastMessageIdInChat.get() != eventsMessageId.get())
+        return isOld() || item != lastMessage || (lastMessageIdInChat.get() != eventsMessageId.get())
     }
 
     private suspend fun handleItem(item: String) {
@@ -94,11 +97,13 @@ class CoordinatorService(
 
     private fun processNonBlankItem(item: String) {
         logDebug("Processing non-blank item")
+        logDebug("Message:\n$item")
         logDebug("lastMessageIdInChat: ${lastMessageIdInChat.get()}, eventsMessageId: ${eventsMessageId.get()}")
-        if (lastMessageIdInChat.get() != eventsMessageId.get()) {
+        if (lastMessageIdInChat.get() != eventsMessageId.get() || isOld()) {
             logDebug("sending new message, deleting $messageIds")
             deleteCacheMessages()
             val newMessageId = telegramBot.get().sendToChat(item).get().messageId
+            lastMessageSentTime.set(System.currentTimeMillis())
             updateMessageIds(newMessageId)
         } else {
             logDebug("editing message ${eventsMessageId.get()}")
@@ -129,6 +134,10 @@ class CoordinatorService(
 
     suspend fun sendActivities(string: String) {
         channel.send(string)
+    }
+
+    fun isOld(): Boolean {
+        return (System.currentTimeMillis() - lastMessageSentTime.get()) > Duration.ofMinutes(5).toMillis()
     }
 
     private fun deleteCacheMessages() {

@@ -13,7 +13,8 @@
     </root>
 
     <!-- Logger for a specific package or class -->
-    <logger name="com.whatever.service.AudioHandler" level="DEBUG" />
+ <!--   <logger name="com.whatever.service.AudioHandler" level="DEBUG" />
+    <logger name="com.whatever.service.CoordinatorService" level="DEBUG" />
     <logger name="com.whatever.service.Mp3Encoder" level="DEBUG" />
-
+-->
 </configuration>
