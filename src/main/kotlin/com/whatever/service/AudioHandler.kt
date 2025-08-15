@@ -114,7 +114,7 @@ class AudioHandler(
         val curQueue: Queue<ByteArray> = queues[username] ?: return@launch
         queues[username] = ConcurrentLinkedQueue()
 
-        if (curQueue.sumOf { it.size } < 10000) {
+        if (curQueue.sumOf { it.size } < 20000) {
             curQueue.clear()
             return@launch
         }

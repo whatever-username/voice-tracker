@@ -4,19 +4,16 @@ import com.whatever.factory.TelegramBot
 import com.whatever.logDebug
 import jakarta.inject.Provider
 import jakarta.inject.Singleton
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Duration
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.max
+import kotlin.time.Duration.Companion.seconds
 
 @Singleton
 class CoordinatorService(
@@ -72,7 +69,7 @@ class CoordinatorService(
 
     private suspend fun periodicallySendActivities() {
         while (true) {
-            delay(5 * 60 * 1000)
+            delay(60.seconds)
             logDebug("Passed from last: " + (System.currentTimeMillis() - lastMessageSentTime.get()))
             if (lastMessageIdInChat.get() != eventsMessageId.get() || isOld()) {
                 scope.launch {
@@ -137,7 +134,7 @@ class CoordinatorService(
     }
 
     fun isOld(): Boolean {
-        return (System.currentTimeMillis() - lastMessageSentTime.get()) > Duration.ofMinutes(5).toMillis()
+        return (System.currentTimeMillis() - lastMessageSentTime.get()) > Duration.ofMinutes(1).toMillis()
     }
 
     private fun deleteCacheMessages() {
