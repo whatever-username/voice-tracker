@@ -63,14 +63,15 @@ class DiscordEventHandler(
                 appendLine("<b>$channelName:</b>")
                 users.forEach { appendUserState(it) }
             }
-            appendLine(userStates.filter { it.presence != null }
-                .joinToString("\n") {
-                    "<code>" +
-                            "${it.user.name}: ${
-                                it.presence?.name?.replace("<", "&lt;")?.replace(">", "&gt;")?.replace("&", "&amp;")
-                            }" +
-                            "</code>"
-                })
+            val presenceLines = userStates.mapNotNull { userState ->
+                userState.presence?.let { activity ->
+                    val formatted = formatActivity(activity)
+                    formatted?.let {
+                        "<code>${escapeHtml(userState.user.name)}: $it</code>"
+                    }
+                }
+            }
+            appendLine(presenceLines.joinToString("\n"))
         }.takeIf { it.isNotBlank() } ?: ""
     }
 
@@ -90,4 +91,34 @@ class DiscordEventHandler(
         }
         appendLine()
     }
+
+    private fun formatActivity(activity: net.dv8tion.jda.api.entities.Activity): String? {
+        val name = escapeHtml(activity.name)
+
+        val rich = activity.asRichPresence()
+        if (rich == null) {
+            return name
+        }
+
+        val details = rich.details?.let { escapeHtml(it) }
+        val state = rich.state?.let { escapeHtml(it) }
+
+        val extra = buildList {
+            if (!details.isNullOrBlank()) add(details)
+            if (!state.isNullOrBlank()) add(state)
+        }.joinToString(". ")
+
+        return buildString {
+            append(name)
+            if (extra.isNotBlank()) {
+                append(". ")
+                append(extra)
+            }
+        }.takeIf { it.isNotBlank() }
+    }
+
+    private fun escapeHtml(input: String): String = input
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
 }
