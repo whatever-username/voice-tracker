@@ -8,7 +8,8 @@ import io.micronaut.context.annotation.ConfigurationProperties
 class DiscordProperties @ConfigurationInject constructor(
     val usernamesToRecord: List<String>,
     val bot: Bot,
-    val guildName: String
+    val guildName: String,
+    val disconnectMutedAfterMinutes: Long?
 ) {
     @ConfigurationProperties("bot")
     class Bot @ConfigurationInject constructor(

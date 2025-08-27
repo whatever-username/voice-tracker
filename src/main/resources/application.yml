@@ -17,6 +17,7 @@ discord:
   usernames-to-record: #discord usernames to record
     - "discord_username1"
     - "discord_username2"
+  disconnect-muted-after-minutes: 1 # disconnect fully-muted users after X minutes if no streams
   bot:
     token: #discord bot token
     name: #discord bot name

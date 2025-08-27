@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import net.dv8tion.jda.api.entities.channel.unions.AudioChannelUnion
+import net.dv8tion.jda.api.entities.GuildVoiceState
 import net.dv8tion.jda.api.events.GenericEvent
 import net.dv8tion.jda.api.events.guild.voice.GuildVoiceUpdateEvent
 import java.io.File
@@ -60,8 +61,17 @@ class DiscordEventHandler(
 
         return buildString {
             voiceChatToUsers.forEach { (channelName, users) ->
-                appendLine("<b>$channelName:</b>")
-                users.forEach { appendUserState(it) }
+                val visibleUsers = users.filter { user ->
+                    val vs = user.voiceState
+                    val muted = isMuted(vs)
+                    val deafened = isDeafened(vs)
+                    val streaming = vs?.isStream == true
+                    !(muted && deafened && !streaming)
+                }
+                if (visibleUsers.isNotEmpty()) {
+                    appendLine("<b>$channelName:</b>")
+                    visibleUsers.forEach { appendUserState(it) }
+                }
             }
             val presenceLines = userStates.mapNotNull { userState ->
                 userState.presence?.let { activity ->
@@ -90,6 +100,16 @@ class DiscordEventHandler(
             if (it.isStream) append("🎥")
         }
         appendLine()
+    }
+
+    private fun isMuted(voiceState: GuildVoiceState?): Boolean {
+        val vs = voiceState ?: return false
+        return vs.isMuted || vs.isSelfMuted || vs.isGuildMuted || vs.isSuppressed
+    }
+
+    private fun isDeafened(voiceState: GuildVoiceState?): Boolean {
+        val vs = voiceState ?: return false
+        return vs.isDeafened || vs.isSelfDeafened || vs.isGuildDeafened
     }
 
     private fun formatActivity(activity: net.dv8tion.jda.api.entities.Activity): String? {
