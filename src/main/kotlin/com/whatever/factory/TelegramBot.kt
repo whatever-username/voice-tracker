@@ -8,9 +8,9 @@ import com.github.kotlintelegrambot.dispatch
 import com.github.kotlintelegrambot.dispatcher.command
 import com.github.kotlintelegrambot.dispatcher.message
 import com.github.kotlintelegrambot.entities.ChatId
+import com.github.kotlintelegrambot.entities.Message
 import com.github.kotlintelegrambot.entities.ParseMode
 import com.github.kotlintelegrambot.logging.LogLevel
-import com.github.kotlintelegrambot.webhook
 import com.mpatric.mp3agic.Mp3File
 import com.whatever.TagsMapConfig
 import com.whatever.logError
@@ -21,7 +21,6 @@ import com.whatever.service.AudioHandler
 import com.whatever.service.CoordinatorService
 import com.whatever.service.OpenAIService
 import com.whatever.toChatId
-import dev.kord.common.concurrentHashMap
 import io.micronaut.context.annotation.Value
 import io.micronaut.runtime.event.ApplicationStartupEvent
 import io.micronaut.runtime.event.annotation.EventListener
@@ -32,8 +31,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -46,7 +43,6 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.SequenceInputStream
 import java.nio.file.Files
-import java.util.Collections
 import kotlin.system.exitProcess
 
 
@@ -92,16 +88,11 @@ class TelegramBot(
             }
             command("restart") { exitProcess(1) }
             command("send") {
-                logInfo("send command from ${message.from?.username}")
-                runCatching {
-                    if (message.from?.id in adminsTelegramIds) {
-                        message.replyToMessage?.audio?.fileId?.let {
-                            CoroutineScope(Dispatchers.IO).launch { audioHandler.playMp3InDiscord(getVoiceLink(it)!!) }
-                        }
-                        bot.deleteMessage(ChatId.fromId(message.chat.id), message.messageId)
-                    }
-                }.exceptionOrNull()?.let { logInfo("Error on sending: ${it.message}") }
+                handleSendCommand(message)
 
+            }
+            command("SEND") {
+                handleSendCommand(message)
             }
             command("play") {
                 logInfo("play command from ${message.from?.username}")
@@ -129,11 +120,27 @@ class TelegramBot(
                 bot.deleteMessage(ChatId.fromId(message.chat.id), message.messageId)
             }
             message {
+                if ((message.text ?: "") in setOf(".ыутв", ".ЫУТВ")) {
+                    handleSendCommand(message)
+                    return@message
+                }
                 if (message.chat.id == targetChatId) {
                     message.messageId.let { coordinatorService.setLastMessageIdInChat(it) }
                 }
             }
         }
+    }
+
+    private fun handleSendCommand(message: Message) {
+        logInfo("send command from ${message.from?.username}")
+        runCatching {
+            if (message.from?.id in adminsTelegramIds) {
+                message.replyToMessage?.audio?.fileId?.let {
+                    CoroutineScope(Dispatchers.IO).launch { audioHandler.playMp3InDiscord(getVoiceLink(it)!!) }
+                }
+                bot.deleteMessage(ChatId.fromId(message.chat.id), message.messageId)
+            }
+        }.exceptionOrNull()?.let { logInfo("Error on sending: ${it.message}") }
     }
 
     @EventListener
